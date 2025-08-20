@@ -35,7 +35,6 @@ services:
   depends_on:
    server-db-init:
     condition: service_completed_successfully
-  network_mode: "host"
   labels:
    com.zabbix.os: "${ALPINE_OS_TAG}"
 
@@ -80,6 +79,8 @@ services:
    file: compose_zabbix_components.yaml
    service: web-nginx-mysql
   image: "${ZABBIX_WEB_NGINX_MYSQL_IMAGE}:${ZABBIX_ALPINE_IMAGE_TAG}${ZABBIX_IMAGE_TAG_POSTFIX}"
+  ports:
+   - "8080:80"
   volumes:
    - /etc/timezone:/etc/timezone:ro
   depends_on:
@@ -87,17 +88,31 @@ services:
     condition: service_completed_successfully
   labels:
    com.zabbix.os: "${ALPINE_OS_TAG}"
-
+ 
+# zabbix-agent:
+#  extends:
+#   file: compose_zabbix_components.yaml
+#   service: agent
+#  image: "${ZABBIX_AGENT_IMAGE}:${ZABBIX_ALPINE_IMAGE_TAG}${ZABBIX_IMAGE_TAG_POSTFIX}"
+#  volumes:
+#   - /etc/timezone:/etc/timezone:ro
+#  labels:
+#   com.zabbix.os: "${ALPINE_OS_TAG}"
  zabbix-agent:
-  extends:
-   file: compose_zabbix_components.yaml
-   service: agent
-  image: "${ZABBIX_AGENT_IMAGE}:${ZABBIX_ALPINE_IMAGE_TAG}${ZABBIX_IMAGE_TAG_POSTFIX}"
-  volumes:
-   - /etc/timezone:/etc/timezone:ro
-  labels:
-   com.zabbix.os: "${ALPINE_OS_TAG}"
-
+    image: zabbix/zabbix-agent2:7.4.1-ubuntu
+    container_name: zabbix-agent
+    networks:
+      - frontend  # Match your Zabbix server network
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server  # Use service name
+      - ZBX_HOSTNAME=Zabbix server
+      - ZBX_SERVER_PORT=10051
+    ports:
+      - "10050:10050"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: unless-stopped
  zabbix-java-gateway:
   extends:
    file: compose_zabbix_components.yaml
@@ -205,4 +220,3 @@ secrets:
 #  server-cert.pem:
 #    file: ${ENV_VARS_DIRECTORY}/.DB_CERT_FILE
 #  server-key.pem:
-#    file: ${ENV_VARS_DIRECTORY}/.DB_KEY_FILE
